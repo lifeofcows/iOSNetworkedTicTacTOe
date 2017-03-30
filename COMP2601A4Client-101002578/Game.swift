@@ -42,7 +42,6 @@ class Game {
             _moves = newValue
             let val = isTie(availableMoves: moves);
             notify(verdict: val, player: 3);
-            print("val is allmoves is \(val) and player is \(3)");
         }
         get {
             return _moves;
