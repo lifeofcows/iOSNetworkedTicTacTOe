@@ -10,33 +10,34 @@ import UIKit
 
 class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
     
-    var connection: Connection = Connection();
     var port: UInt16 = 8889;
     var host: String = "192.168.0.15"
-    var socket:GCDAsyncSocket!
     var numRows: Int = 1;
     var userList = [NetService]();
     static var instance: MasterViewController?
-    var GameViewController: GameViewController? = nil
+    var GameViewController: GameViewController?
     var objects: [String] = [];
     var details: [String] = [];
     let bg = DispatchQueue.global(qos: .background);
     var name: String = "";
     var oppName: String = "";
-    
+    var oppIndexPath: IndexPath?;
     var alertView: UIAlertController?
+    var alertView1: UIAlertController?
+    var player1: Bool = false;
     
     var service: Service!;
     var acceptor: AcceptorReactor!;
+    var stream: EventStream!
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
     
     func addToUserList(service: NetService) {
-        if !userList.contains(service) {//&& service.name != name {
+        if !userList.contains(service) && service.name != name {
             userList.append(service);//add table row as well
-            let indexPath = IndexPath(row: 0, section: 0)
+            let indexPath = IndexPath(row: userList.count-1, section: 0)
             self.tableView.insertRows(at: [indexPath], with: .automatic)
             print("Added \(service.name) to UserList")
         }
@@ -73,32 +74,31 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
         bg.async {
            self.acceptor.accept(on: 8889)
         }
-        
+    }
+    
+    //IMPLEMENT BACK BUTTON OVERRIDE
+    
+    func doGameStartSegue() {
+        DispatchQueue.main.async {
+            self.performSegue(withIdentifier: "gameOn", sender: self);
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
         self.clearsSelectionOnViewWillAppear = self.splitViewController!.isCollapsed
         super.viewWillAppear(animated)
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        //showGameReqAlert(player: "lel")
-    }
-    
-    // MARK: - Segues
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        print("prepped for seg, sender is \(sender)");
-        /*if segue.identifier == "selectRow" {
-            //if let indexPath = self.tableView.indexPathForSelectedRow { //request a game with the other user
-                
-            //}
-        }*/
-        if segue.identifier == "gameOn" {
-            print("seguing rn")
-            let controller = (segue.destination as! UINavigationController).topViewController as! GameViewController
-            controller.navigationItem.leftBarButtonItem = self.splitViewController?.displayModeButtonItem
-            controller.navigationItem.leftItemsSupplementBackButton = true
+        //Will get called on segue back
+        //close stream
+        if (service.connection.socket != nil) {
+            service.connection.socket.disconnect();
         }
+    }
+    
+    override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
+        if (service.connection.isConnected) {        //if socket connected
+            return true;
+        }
+        return false;
     }
     
     override func numberOfSections(in tableView: UITableView) -> Int {
@@ -106,10 +106,13 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print("lel");
+        oppIndexPath = indexPath;
+        print("Set to index path");
         let opponentService = userList[indexPath.row];
         oppName = opponentService.name;
-        connection.open(host: opponentService.hostName!, port: UInt16(opponentService.port));
+        service.connection.open(host: opponentService.hostName!, port: UInt16(opponentService.port));
+        tableView.cellForRow(at: indexPath)?.isSelected = false
+        tableView.cellForRow(at: indexPath)?.isUserInteractionEnabled = false;
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -119,24 +122,31 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
         let object = userList[indexPath.row]
-        cell.textLabel!.text = object.name
+        cell.textLabel!.text = object.name;
         return cell
     }
 
+    func showWaitingAlert() {
+        alertView1 = UIAlertController(title: "Play Request with \(oppName)", message: "Waiting...", preferredStyle: UIAlertControllerStyle.alert);
+    }
+    
     func showGameReqAlert(player: String, es: EventStream) {
+        print("entered game req alert");
+        stream = es;
         alertView = UIAlertController(title: "Play Request!", message: "\(player) wants to play with you", preferredStyle: UIAlertControllerStyle.alert)
         
         let acceptAction = UIAlertAction(title: "Accept", style: UIAlertActionStyle.default)
         {
             (result : UIAlertAction) -> Void in
             Event(stream: es, fields: ["TYPE":"PLAY_GAME_RESPONSE", "SOURCE": MasterViewController.instance?.name ?? "NULL", "DESTINATION": player, "ANSWER": true]).put()
-            print("return true");
+            self.doGameStartSegue();
+            print("return true in play_game_response");
         }
         let declineAction = UIAlertAction(title: "Decline", style: UIAlertActionStyle.default)
         {
             (result : UIAlertAction) -> Void in
             Event(stream: es, fields: ["TYPE":"PLAY_GAME_RESPONSE", "SOURCE": MasterViewController.instance?.name ?? "NULL", "DESTINATION": player, "ANSWER": false]).put()
-            print("return false");
+            print("return false in play_game_response");
         }
         alertView?.addAction(acceptAction);
         alertView?.addAction(declineAction)

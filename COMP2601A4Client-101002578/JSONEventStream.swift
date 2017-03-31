@@ -18,13 +18,16 @@ class JSONEventStream: EventStream {
     }
     
     func get(data: Data) -> Event {
+        var event: Event!;
+        //print("getting...")
         let string = String(data: data, encoding: .ascii)!
-        let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String : String]
-        // So you can see what is being received by the 
-        // stream.
-        print("Data: \(string)")
+
+        let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String : Any]
         
-        let event = Event(stream: self, fields: json!)
+        print("Data: \(string)");
+        
+        event = Event(stream: self, fields: json!)
+        
         return event
     }
     
@@ -36,7 +39,6 @@ class JSONEventStream: EventStream {
         let output = try? JSONSerialization.data(withJSONObject: event.fields, options: [])
         socket?.write(output!, withTimeout: -1, tag: 0)
         socket?.write(nl!, withTimeout: -1, tag: 0)
-        //print("Wrote from JSONEventStream");
     }
     
     func close() {

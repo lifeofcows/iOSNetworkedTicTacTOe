@@ -30,20 +30,12 @@ class GameViewController: UIViewController, Observer { //, Observer {
     
     static var instance: GameViewController?
     
-    var playerTurn: Bool = true;
     var gameStarted: Bool = false;
     var moves = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     var xMoves = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     var oMoves = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-    var corners = [0, 2, 6, 8];
-    var sides = [1, 3, 5, 7];
     
     var gameActive = true;
-    let bgqueue = DispatchQueue.global(qos: .background);
-    
-    let sleepTime: UInt32 = 2000000; //sleeptime for the computer
-    
-    var isFirst: Bool!;
     
     //function is called from the Game class every time a move is made to determine whether game has ended
     func didWin(verdict: Int, player: Int) {
@@ -72,12 +64,21 @@ class GameViewController: UIViewController, Observer { //, Observer {
     
     //IBAction corresponds to the start button; function starts the game/ends the game.
     @IBAction func startAction(_ sender: UIButton?) {
+        print("Sender: \(sender)")
         gameStarted = !gameStarted;
         if (gameStarted) {
             gameActive = true
+            if (MasterViewController.instance?.player1)! {
+                let stream = MasterViewController.instance?.stream;
+                let source = MasterViewController.instance?.name
+                let destination = MasterViewController.instance?.oppName
+                Event(stream: stream!, fields: ["TYPE": "GAME_ON", "SOURCE": source!, "DESTINATION": destination!]).put()
+                
+            }
             startGame();
         }
-        else{
+        else {
+            showText.text = stringsConstants.gameEnded;
             gameActive = false
             endGame();
         }
@@ -91,82 +92,15 @@ class GameViewController: UIViewController, Observer { //, Observer {
     func startGame() { //function starts game; does some ready work to prep game for new game.
         startButton.setTitle("Stop", for: .normal);
         resetGame();
-        playerTurn = true;
-        toggleButtons(flag: true);
-        //if compSwitch.isOn { //if computer mode is on, create thread and play with computer
-            bgqueue.async { //create background thread
-                while (self.gameStarted) {
-                    if (self.playerTurn) {
-                        self.toggleButtons(flag: true);
-                    }
-                    else {
-                        self.toggleButtons(flag: false);
-                    }
-                    
-                    //print("sleeping now");
-                    usleep(self.sleepTime);
-                    
-                    let AIMove = self.AIMove();
-                    if AIMove == -1 {
-                        return;
-                    }
-                    DispatchQueue.main.async { //update UI here
-                        let button: UIButton = self.view.viewWithTag(AIMove+1) as! UIButton //button clicked programmatically
-                        button.sendActions(for: .touchUpInside)
-                    }
-                    self.toggleButtons(flag: false)
-            //    }
-            }
+        if(MasterViewController.instance?.player1)!{
+            toggleButtons(flag: true);
         }
+        else{
+            toggleButtons(flag: false);
+        }
+      
     }
-    
-    func AIMove() -> Int { //implemented AI logic here
-        var typeMoves: [Int];
-        var opponentMoves: [Int];
-        
-        if (self.playerTurn) {
-            typeMoves = xMoves;
-            opponentMoves = oMoves;
-        }
-        else {
-            typeMoves = oMoves;
-            opponentMoves = xMoves;
-        }
-        for i in 0...8 { //winning condition
-            if moves[i] == 0 {
-                typeMoves[i] = 1;
-                if (game.checkGameOver(arr: typeMoves) == 1) {
-                    return i;
-                }
-                else {
-                    typeMoves[i] = 0;
-                }
-            }
-        }
-        for i in 0...8 { //blocking condition
-            if moves[i] == 0 {
-                opponentMoves[i] = 1;
-                if (game.checkGameOver(arr: opponentMoves) == 1) {
-                    return i;
-                }
-                else {
-                    opponentMoves[i] = 0;
-                }
-            }
-        }
-        
-        let val = randMoveFromArray(arr: corners); //return one of the random corners
-        if (val != -1) {
-            return val;
-        }
-        
-        if (moves[4] == 0) { //return the center
-            return 4;
-        }
-        
-        return randMoveFromArray(arr: sides); //return one of the random sides
-    }
-    
+
     func randMoveFromArray(arr: [Int])->Int { //returns a random element based on the array depending on the 'move' array
         var availableRandMoves: [Int] = [Int](); //pick a corner
         for i in arr {
@@ -181,34 +115,42 @@ class GameViewController: UIViewController, Observer { //, Observer {
     }
     
     @IBAction func buttonPress(_ sender: UIButton) { //called whenever a tic tac toe button is pressed
+        print("button clicked")
         if(moves[(sender.tag)-1] == 0 && gameActive == true) { //if the game is on and the button that is clicked has not been previously clicked
-            showText.text = "Button \(sender.tag) pressed"
-            if (playerTurn) {
-                sender.setImage(#imageLiteral(resourceName: "button_x"), for: UIControlState.normal)
-                sender.setImage(#imageLiteral(resourceName: "button_x"), for: UIControlState.disabled)
-                moves[(sender.tag)-1] = 1; //Move has been used
-                xMoves[(sender.tag)-1] = 1;
-                game.xMoves = xMoves;
-                game.moves = moves;
-                toggleButtons(flag: false)
-                playerTurn = !playerTurn;
+            makeMove(move: sender.tag-1, sender: sender);
+            DispatchQueue.main.async {
+                self.toggleButtons(flag: false);
             }
-                /*
-            else if (!playerTurn) {
-                sender.setImage(#imageLiteral(resourceName: "button_o"), for: UIControlState.normal)
-                sender.setImage(#imageLiteral(resourceName: "button_o"), for: UIControlState.disabled)
-                moves[(sender.tag)-1] = 1; //Move has been used
-                oMoves[(sender.tag)-1] = 1
-                game.oMoves = oMoves;
-                game.moves = moves;
-                toggleButtons(flag: true)
-                playerTurn = !playerTurn;
-            }*/
+            let stream = MasterViewController.instance?.stream;
+            let source = MasterViewController.instance?.name
+            let destination = MasterViewController.instance?.oppName
+            Event(stream: stream!, fields: ["TYPE": "MOVE_MESSAGE", "SOURCE": source!, "DESTINATION": destination!, "MOVE": sender.tag - 1]).put()
+        }
+    }
+    
+    func makeMove(move: Int, sender: UIButton) {
+        showText.text = "Button \(move) pressed"
+        if ((MasterViewController.instance?.player1)!) {
+            sender.setImage(#imageLiteral(resourceName: "button_x"), for: UIControlState.normal)
+            sender.setImage(#imageLiteral(resourceName: "button_x"), for: UIControlState.disabled)
+            moves[move] = 1; //Move has been used
+            xMoves[move] = 1;
+            game.xMoves = xMoves;
+            game.moves = moves;
+        }
+        else {
+            sender.setImage(#imageLiteral(resourceName: "button_o"), for: UIControlState.normal)
+            sender.setImage(#imageLiteral(resourceName: "button_o"), for: UIControlState.disabled)
+            moves[move] = 1; //Move has been used
+            oMoves[move] = 1
+            game.oMoves = oMoves;
+            game.moves = moves;
         }
     }
     
     //turns on/off all buttons depending on flag value
     func toggleButtons(flag: Bool) {
+        print("doing toggle buttons...\(flag)");
         for i in 1...9 {
             let button = view.viewWithTag(i) as! UIButton
             button.isEnabled = flag;
@@ -217,7 +159,6 @@ class GameViewController: UIViewController, Observer { //, Observer {
     
     //resets the game
     func resetGame(){
-        playerTurn = true;
         moves = [0, 0, 0, 0, 0, 0, 0, 0, 0];
         xMoves = [0, 0, 0, 0, 0, 0, 0, 0, 0];
         oMoves = [0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -238,6 +179,13 @@ class GameViewController: UIViewController, Observer { //, Observer {
         
         toggleButtons(flag: false); //turn off all buttons initally
         GameViewController.instance = self;
+        
+        if (MasterViewController.instance?.player1)! {
+            startButton.isEnabled = true;
+        }
+        else {
+            startButton.isEnabled = false;
+        }
     }
     
     override func didReceiveMemoryWarning() {
@@ -245,12 +193,13 @@ class GameViewController: UIViewController, Observer { //, Observer {
     }
     
     func oppMadeMove(move: Int) {
-        if (isFirst!) {
-            
+        let button: UIButton = self.view.viewWithTag(move+1) as! UIButton //button clicked programmatically
+        DispatchQueue.main.async {
+            MasterViewController.instance?.player1 = !(MasterViewController.instance?.player1)!
+            self.makeMove(move: move, sender: button);
+            MasterViewController.instance?.player1 = !(MasterViewController.instance?.player1)!
+            self.toggleButtons(flag: true);
         }
-        
-        playerTurn = true;
     }
-    
 }
 

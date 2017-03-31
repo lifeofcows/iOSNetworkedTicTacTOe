@@ -11,42 +11,57 @@ import UIKit
 
 class Connection: NSObject, GCDAsyncSocketDelegate, Reactor {
     var socket: GCDAsyncSocket!
-    var isStarted: Bool = true;
+    var isConnected: Bool = false;
     var reactor = ReactorImpl();
     let dg = DispatchGroup()
-
+    //static var instance: Connection?;
+    var clientName: String!;
+    var oppName: String!;
+    
     func open(host: String, port:UInt16) {
-        print("Opening socket connection with host \(host), port \(port)");
+        print("Opening socket connection with host (Server) \(host), port \(port)");
         socket = GCDAsyncSocket(delegate: self,
                                 delegateQueue: DispatchQueue.main)
         do {
             try socket.connect(toHost: host, onPort: port)
+            isConnected = true;
             print("Connected!");
+            registerHandlers();
         } catch let e {
             print(e)
         }
     }
     
     func registerHandlers() {
-        register(name: "PLAY_GAME_REQUEST",  handler: PlayGameRequest());
-        register(name: "PLAY_GAME_RESPONSE", handler: PlayGameResponse());
-        register(name: "GAME_ON",  handler: gameOn());
-        register(name: "MOVE_MESSAGE", handler: PlayGameResponse());
-        register(name: "GAME_OVER",  handler: PlayGameRequest());
+        reactor.register(name: "PLAY_GAME_REQUEST",  handler: PlayGameRequest());
+        reactor.register(name: "PLAY_GAME_RESPONSE", handler: PlayGameResponse());
+        reactor.register(name: "GAME_ON",  handler: gameOn());
+        reactor.register(name: "MOVE_MESSAGE", handler: moveMessage());
+        reactor.register(name: "GAME_OVER",  handler: gameOver());
     }
     
     func socket(_ sock : GCDAsyncSocket,
                 didConnectToHost host:String, port p:UInt16) {
+
         print("Connected to \(host) on port \(p).") //CONNECTED! NOW CAN SEND OBJECT
-        Event(stream: JSONEventStream(socket: sock), fields: ["TYPE": "PLAY_GAME_REQUEST", "SOURCE": MasterViewController.instance?.name ?? "NULL", "DESTINATION": MasterViewController.instance?.oppName ?? "NULL"]).put();
+        clientName = MasterViewController.instance?.name;
+        oppName = MasterViewController.instance?.oppName;
+        MasterViewController.instance?.stream = JSONEventStream(socket: socket)
+        Event(stream: JSONEventStream(socket: socket), fields: ["TYPE": "PLAY_GAME_REQUEST", "SOURCE": MasterViewController.instance?.name ?? "NULL", "DESTINATION": MasterViewController.instance?.oppName ?? "NULL"]).put();
+        print("putting connection didConnectToHost event...");
+        GameViewController.instance?.startButton.isEnabled = true;
+        MasterViewController.instance?.player1 = true;
+        print("This is player 1!")
+        GameViewController.instance?.es = JSONEventStream(socket: socket);
+        JSONEventStream(socket: sock).get();
     }
     
-    func socket(_ sock: GCDAsyncSocket, didRead data: Data, withTag tag: Int) {
-        print("Reading data...");
-        let clientData = JSONEventStream(socket: sock).get(data: data);
-        print("       got clientData...")
+    func socket(_ sock: Socket, didRead data: Data, withTag tag: Int) {
+        print("Reading data... (on connection)");
+        let clientData = JSONEventStream(socket: socket).get(data: data);
+        print("       got clientData... (on connection)")
         reactor.dispatch(event: clientData);
-        print("       dispatched clientData...")
+        print("       dispatched clientData... (on connection)")
         JSONEventStream(socket: sock).get();
     }
     
@@ -63,6 +78,8 @@ class Connection: NSObject, GCDAsyncSocketDelegate, Reactor {
     }
     
     func socketDidDisconnect(_ sock: GCDAsyncSocket, withError err: Error?) {
-        print("Disconnected");
+        MasterViewController.instance?.player1 = false;
+        isConnected = false;
+        print("Disconnected (connection)");
     }
 }

@@ -22,10 +22,14 @@ class ReactorImpl: Reactor {
     
     func dispatch(event: Event) {
         let type = event.fields["TYPE"] as! String
+        print("Type: \(type)");
         let handler = handlers[type]
         if handler != nil {
+            print("Handled event of type \(type)");
             handler?.handleEvent(event: event)
         }
-        print("Handled event of type \(type)");
+        else {
+            print("Event is nil");
+        }
     }
 }

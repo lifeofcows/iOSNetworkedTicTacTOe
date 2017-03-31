@@ -23,6 +23,7 @@ class AcceptorReactor: NSObject, SocketDelegate, Reactor, NetServiceDelegate {
     var netService: NetService
     var name = MasterViewController.instance?.name;
     static var instance: AcceptorReactor?
+    var clientSocket: Socket!
     
     init(domain: String, type: String, name: String, port: Int32) {
         netService = NetService(domain: domain, type: type, name: name, port: port)
@@ -71,15 +72,18 @@ class AcceptorReactor: NSObject, SocketDelegate, Reactor, NetServiceDelegate {
         register(name: "PLAY_GAME_REQUEST",  handler: PlayGameRequest());
         register(name: "PLAY_GAME_RESPONSE", handler: PlayGameResponse());
         register(name: "GAME_ON",  handler: gameOn());
-        register(name: "MOVE_MESSAGE", handler: PlayGameResponse());
-        register(name: "GAME_OVER",  handler: PlayGameRequest());
+        register(name: "MOVE_MESSAGE", handler: moveMessage());
+        register(name: "GAME_OVER",  handler: gameOver());
     }
    
     func socket(_ socket: Socket, didAcceptNewSocket newSocket: Socket) {
+        print("Opening socket connection with Connection (Client), Host #: \(newSocket.connectedHost), port \(newSocket.connectedPort)");
         print("Started didAcceptNewSocket in AcceptorReactor")
+        clientSocket = newSocket;
         let jsonevent = JSONEventStream(socket: newSocket);
         clients[newSocket] = jsonevent;
         clients[newSocket]?.get();
+        GameViewController.instance?.es = jsonevent;
         print("Ended didAcceptNewSocket in AcceptorReactor")
     }
     
@@ -88,7 +92,12 @@ class AcceptorReactor: NSObject, SocketDelegate, Reactor, NetServiceDelegate {
         clients[sock] = nil
         sock.disconnect()
     }
-      func socket(_ sock: Socket, didRead data: Data, withTag tag: Int) {
+    
+    func gameStart() {
+     //   
+    }
+    
+    func socket(_ sock: Socket, didRead data: Data, withTag tag: Int) {
             print("Reading data...");
             let client = clients[sock];
             let clientData = client?.get(data: data);

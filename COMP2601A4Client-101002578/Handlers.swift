@@ -19,10 +19,11 @@ class PlayGameResponse: EventHandler {
     func handleEvent(event: Event) {
         print("play game response handler called");
         if event.fields["ANSWER"] as! Bool {
-            MasterViewController.instance?.performSegue(withIdentifier: "gameOn", sender: self) //segue
-            Event(stream: event.stream, fields: ["TYPE": "GAME_ON", "SOURCE": event.fields["DESTINATION"] as! String, "DESTINATION": event.fields["SOURCE"] as! String]).put();
+            MasterViewController.instance?.doGameStartSegue();
+            GameViewController.instance?.es = event.stream;
         }
         else {
+            MasterViewController.instance?.tableView.cellForRow(at: (MasterViewController.instance?.oppIndexPath)!)?.isUserInteractionEnabled = true;
             event.stream.close(); //close socket connection
         }
     }
@@ -31,25 +32,31 @@ class PlayGameResponse: EventHandler {
 class gameOn: EventHandler {
     func handleEvent(event: Event) { //create new game
         print("game on handler called");
-        MasterViewController.instance?.performSegue(withIdentifier: "gameOn", sender: self) //segue
+        DispatchQueue.main.async {
+            GameViewController.instance?.startButton.isEnabled = true;
+            GameViewController.instance?.startButton.sendActions(for: .touchUpInside);
+        }
     }
 }
 
 class moveMessage: EventHandler {
     func handleEvent(event: Event) {
-        print("movemessage handler called");
         let move = event.fields["MOVE"] as? Int;
+        print("movemessage handler called, \(move) is move");
         GameViewController.instance?.oppMadeMove(move: move!);
     }
 }
 
 class gameOver: EventHandler {
     func handleEvent(event: Event) {
-        print("gameover handler called");
-        GameViewController.instance?.showText.text = event.fields["REASON"] as? String;
-        GameViewController.instance?.endGame();
+        print("gameover handler called(TEST)");
+        //GameViewController.instance?.showText.text = event.fields["REASON"] as? String;
+        //GameViewController.instance?.endGame();
     }
 }
+
+
+
 /*
 PLAY_GAME_REQUEST
 TYPE = "PLAY_GAME_REQUEST"
