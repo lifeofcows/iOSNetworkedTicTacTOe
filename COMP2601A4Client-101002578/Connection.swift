@@ -9,6 +9,10 @@
 import Foundation
 import UIKit
 
+//Zachary Seguin 101000589
+//Maxim Kuzmenko 101002578
+
+//class for the person who initiates tic tac toe connection; opens up port on server (opponent) socket
 class Connection: NSObject, GCDAsyncSocketDelegate, Reactor {
     var socket: GCDAsyncSocket!
     var isConnected: Bool = false;
@@ -31,7 +35,7 @@ class Connection: NSObject, GCDAsyncSocketDelegate, Reactor {
             print(e)
         }
     }
-    
+    //registers all the respective handlers
     func registerHandlers() {
         reactor.register(name: "PLAY_GAME_REQUEST",  handler: PlayGameRequest());
         reactor.register(name: "PLAY_GAME_RESPONSE", handler: PlayGameResponse());
@@ -40,6 +44,7 @@ class Connection: NSObject, GCDAsyncSocketDelegate, Reactor {
         reactor.register(name: "GAME_OVER",  handler: gameOver());
     }
     
+    //sends initial play game req to server
     func socket(_ sock : GCDAsyncSocket,
                 didConnectToHost host:String, port p:UInt16) {
 
@@ -56,6 +61,7 @@ class Connection: NSObject, GCDAsyncSocketDelegate, Reactor {
         JSONEventStream(socket: sock).get();
     }
     
+    //reads data from server
     func socket(_ sock: Socket, didRead data: Data, withTag tag: Int) {
         print("Reading data... (on connection)");
         let clientData = JSONEventStream(socket: socket).get(data: data);
@@ -76,7 +82,7 @@ class Connection: NSObject, GCDAsyncSocketDelegate, Reactor {
     func dispatch(event: Event) {
         reactor.dispatch(event: event)
     }
-    
+    //disconnects when user leaves game
     func socketDidDisconnect(_ sock: GCDAsyncSocket, withError err: Error?) {
         MasterViewController.instance?.player1 = false;
         isConnected = false;

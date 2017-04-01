@@ -8,6 +8,8 @@
 
 import UIKit
 
+//Zachary Seguin 101000589
+//Maxim Kuzmenko 101002578
 class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
     
     var port: UInt16 = 8889;
@@ -34,6 +36,7 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
         super.didReceiveMemoryWarning()
     }
     
+    //ads user to list
     func addToUserList(service: NetService) {
         if !userList.contains(service) && service.name != name {
             userList.append(service);//add table row as well
@@ -45,7 +48,7 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
             print("userlist already contains this service or service name is name");
         }
     }
-    
+    //removes from list
     func removeFromUserList(service: NetService) {
         let index = userList.index(of: service)
         if  index != nil {
@@ -66,7 +69,7 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
             let controllers = split.viewControllers
             self.GameViewController = (controllers[controllers.count-1] as! UINavigationController).topViewController as? GameViewController
         }
-        
+        //gen random name
         name = randomString(length: 8);
         service = Service(domain: "local", type:"_tictactoe._tcp.");
         acceptor = AcceptorReactor(domain: "local", type: "_tictactoe._tcp.", name: name, port: 8889); //don't connect automatically
@@ -78,6 +81,7 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
     
     //IMPLEMENT BACK BUTTON OVERRIDE
     
+    //create start segue
     func doGameStartSegue() {
         DispatchQueue.main.async {
             self.performSegue(withIdentifier: "gameOn", sender: self);
@@ -105,6 +109,7 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
         return 1
     }
     
+    //on click row
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         oppIndexPath = indexPath;
         print("Set to index path");
@@ -129,7 +134,7 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
     func showWaitingAlert() {
         alertView1 = UIAlertController(title: "Play Request with \(oppName)", message: "Waiting...", preferredStyle: UIAlertControllerStyle.alert);
     }
-    
+    //request alert from server side
     func showGameReqAlert(player: String, es: EventStream) {
         print("entered game req alert");
         stream = es;
@@ -165,6 +170,7 @@ class MasterViewController: UITableViewController, GCDAsyncSocketDelegate {
         self.present(alertView!, animated: true, completion: nil)
     }
     
+    //gen random string
     func randomString(length: Int) -> String {
         
         let letters : NSString = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

@@ -39,9 +39,15 @@ class GameViewController: UIViewController, Observer { //, Observer {
     
     //function is called from the Game class every time a move is made to determine whether game has ended
     func didWin(verdict: Int, player: Int) {
+        gameStarted = false
+        print("player is \(player) and verdict is \(verdict)");
         if (player == 3 && verdict == 1) { //tie
+            let stream = MasterViewController.instance?.stream;
+            let source = MasterViewController.instance?.name
+            let destination = MasterViewController.instance?.oppName
             showText.text = stringsConstants.tie;
             gameActive = false;
+            Event(stream: stream!, fields: ["TYPE": "GAME_OVER", "SOURCE": source!, "DESTINATION": destination!, "REASON": "It is a tie!"]).put()
         }
         if (verdict == 0) {
             //resume game, just display move
@@ -52,14 +58,22 @@ class GameViewController: UIViewController, Observer { //, Observer {
                 showText.text = stringsConstants.xWin;
                 print("X won")
                 gameActive = false
+                let stream = MasterViewController.instance?.stream;
+                let source = MasterViewController.instance?.name
+                let destination = MasterViewController.instance?.oppName
+                Event(stream: stream!, fields: ["TYPE": "GAME_OVER", "SOURCE": source!, "DESTINATION": destination!, "REASON": "X won the game!"]).put()
             }
             else if (player == 2) { //computer won
                 showText.text = stringsConstants.oWin;
                 print("O won")
+                let stream = MasterViewController.instance?.stream;
+                let source = MasterViewController.instance?.name
+                let destination = MasterViewController.instance?.oppName
+                Event(stream: stream!, fields: ["TYPE": "GAME_OVER", "SOURCE": source!, "DESTINATION": destination!, "REASON": "O won the game!"]).put()
                 gameActive = false
             }
         }
-        startAction(nil);
+        endGame();
     }
     
     //IBAction corresponds to the start button; function starts the game/ends the game.
@@ -85,7 +99,15 @@ class GameViewController: UIViewController, Observer { //, Observer {
     }
     
     func endGame() { //function ends game
-        startButton.setTitle("Start", for: .normal) //Set button to start meaning user has clicked stop
+        print("entered endgame");
+        if (MasterViewController.instance?.player1)! {
+            startButton.setTitle("Start", for: .normal) //Set button to start meaning user has clicked stop
+            startButton.isEnabled = true
+        }
+        else {
+            startButton.setTitle("Start", for: .normal) //Set button to start meaning user has clicked stop
+            startButton.isEnabled = false
+        }
         toggleButtons(flag: false);
     }
     
